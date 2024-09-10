@@ -68,7 +68,6 @@ public class VelocityPteroPower {
     private final ConfigurationManager configurationManager;
     private PanelAPIClient apiClient;
     private final Metrics.Factory metricsFactory;
-    private final Set<String> startingServers = ConcurrentHashMap.newKeySet();
 
     /**
      * Constructor for the VelocityPteroPower class.
@@ -173,13 +172,7 @@ public class VelocityPteroPower {
                 .append(Component.text("] Server not found in configuration: " + serverName, NamedTextColor.WHITE)));
             return;
         }
-        if (apiClient.isServerOnline(serverInfo.getServerId())) {
-            if (startingServers.contains(serverName)){
-                startingServers.remove(serverName);
-            }
-            return;
-        }
-        if (startingServers.contains(serverName)){
+        if (apiClient.isServerStarting(serverInfo.getServerId()) && !apiClient.isServerOnline(serverInfo.getServerId())){
             if (event.getPreviousServer() == null) {
                 player.disconnect(
                         Component.text(
@@ -194,18 +187,20 @@ public class VelocityPteroPower {
             return;
         }
 
-        startingServers.add(serverName);
-        apiClient.powerServer(serverInfo.getServerId(), "start");
-        player.sendMessage(
-                Component.text("[", NamedTextColor.WHITE)
-                .append(Component.text("VPP", TextColor.color(66,135,245)))
-                .append(Component.text("] Starting server: " + serverName, NamedTextColor.WHITE)));
-        event.setResult(ServerPreConnectEvent.ServerResult.denied());
-        if (event.getPreviousServer() == null) {
-            player.disconnect(
-                    Component.text(
-                            "Starting server…\n\nServer " + serverName + " is currently in hibernation mode to conserve server resources.\nIt is now being started, so please wait a moment and then reconnect.",
-                            NamedTextColor.WHITE));
+        if (!apiClient.isServerStarting(serverInfo.getServerId())
+                && !apiClient.isServerOnline(serverInfo.getServerId())) {
+            apiClient.powerServer(serverInfo.getServerId(), "start");
+            player.sendMessage(
+                    Component.text("[", NamedTextColor.WHITE)
+                            .append(Component.text("VPP", TextColor.color(66, 135, 245)))
+                            .append(Component.text("] Starting server: " + serverName, NamedTextColor.WHITE)));
+            event.setResult(ServerPreConnectEvent.ServerResult.denied());
+            if (event.getPreviousServer() == null) {
+                player.disconnect(
+                        Component.text(
+                                "Starting server…\n\nServer " + serverName + " is currently in hibernation mode to conserve server resources.\nIt is now being started, so please wait a moment and then reconnect.",
+                                NamedTextColor.WHITE));
+            }
         }
 
         proxyServer.getScheduler().buildTask(this, () -> {
@@ -251,8 +246,8 @@ public class VelocityPteroPower {
         }
 
         if (apiClient.isServerOnline(serverInfoMap.get(serverName).getServerId())) {
+            // startingServers.remove(serverName);
             player.createConnectionRequest(server).fireAndForget();
-            startingServers.remove(serverName);
         }
     }
 

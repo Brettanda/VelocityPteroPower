@@ -31,17 +31,44 @@ public class PelicanAPIClient implements PanelAPIClient {
     public void powerServer(String serverId, String signal) {
         try {
             HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(configurationManager.getPterodactylUrl() + "api/client/servers/" + serverId + "/power"))
-                .header("Accept", "application/json")
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + configurationManager.getPterodactylApiKey())
-                .POST(HttpRequest.BodyPublishers.ofString("{\"signal\": \"" + signal + "\"}"))
-                .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(
+                            configurationManager.getPterodactylUrl() + "api/client/servers/" + serverId + "/power"))
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + configurationManager.getPterodactylApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"signal\": \"" + signal + "\"}"))
+                    .build();
 
             client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (Exception e) {
             logger.error("Error powering server.", e);
         }
+    }
+
+    // no clue if this actually works or not
+    // it's just a copy of isServerOnline with one change
+    public boolean isServerStarting(String serverId) {
+        try {
+            // Make the API request to get the server status
+            // Replace this with the actual API request code for the new panel API
+            String responseBody = "{\"object\": \"stats\", \"attributes\": {\"current_state\": \"running\", \"is_suspended\": false, \"resources\": {\"memory_bytes\": 1662955520, \"cpu_absolute\": 17.335, \"disk_bytes\": 180404668, \"network_rx_bytes\": 11376, \"network_tx_bytes\": 3184, \"uptime\": 183942}}}";
+
+            JsonNode rootNode = objectMapper.readTree(responseBody);
+            JsonNode attributesNode = rootNode.get("attributes");
+
+            if (attributesNode != null) {
+                String currentState = attributesNode.get("current_state").asText();
+                boolean isSuspended = attributesNode.get("is_suspended").asBoolean();
+
+                // this is the one change
+                return currentState.equals("starting") && !isSuspended;
+            }
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return false;
     }
 
     @Override

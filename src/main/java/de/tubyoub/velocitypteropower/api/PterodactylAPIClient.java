@@ -92,6 +92,39 @@ public class PterodactylAPIClient implements PanelAPIClient{
 
 
     /**
+     * This method checks if a server is starting.
+     *
+     * @param serverId the ID of the server
+     * @return true if the server is starting, false otherwise
+     */
+    public boolean isServerStarting(String serverId) {
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(configurationManager.getPterodactylUrl() + "api/client/servers/" + serverId + "/resources"))
+                    .header("Accept", "application/json")
+                     .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + configurationManager.getPterodactylApiKey())
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            String responseBody = response.body();
+            if (response.statusCode() == 200)  {
+                if (responseBody.contains("{\"object\":\"stats\",\"attributes\":{\"current_state\":\"starting\"")) {
+                    return true;
+                }
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return false;
+    }
+
+    /**
      * This method checks if a server is online.
      *
      * @param serverId the ID of the server
