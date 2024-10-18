@@ -55,7 +55,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -82,6 +81,7 @@ public class VelocityPteroPower {
     private final AtomicInteger rateLimit = new AtomicInteger(60); // Default value, will be updated
     private final AtomicInteger remainingRequests = new AtomicInteger(60); // Default value, will be updated
     private final ReentrantLock rateLimitLock = new ReentrantLock();
+    private final Map<String, Integer> retryCounts = new ConcurrentHashMap<>();
 
     /**
      * Constructor for the VelocityPteroPower class.
@@ -157,11 +157,46 @@ public class VelocityPteroPower {
             return proxyServer.getScheduler().buildTask(this, () -> {
                 if (apiClient.isServerEmpty(serverName)) {
                     apiClient.powerServer(serverID, "stop");
-                    logger.info(messagesManager.getMessage("server-shutting-down").replace("%server%", serverName));
+                    logger.info(messagesManager.getMessage("server-shutting-down")
+                            .replace("%server%", serverName));
+                    scheduleShutdownCheck(serverName, serverID);
                 }else {
-                    logger.info(messagesManager.getMessage("shutdown-cancelled").replace("%server%", serverName));
+                    logger.info(messagesManager.getMessage("shutdown-cancelled")
+                            .replace("%server%", serverName));
                 }
             }).delay(timeout, TimeUnit.SECONDS).schedule();
+        }
+
+        private void scheduleShutdownCheck(String serverName, String serverID) {
+            proxyServer.getScheduler().buildTask(this, () -> {
+                if (apiClient.isServerOnline(serverID)) {
+                    int retryCount = retryCounts.getOrDefault(serverName, 0) + 1;
+                    if (retryCount <= configurationManager.getShutdownRetryDelay()) {
+                        if (apiClient.isServerEmpty(serverName)){
+                            retryCounts.put(serverName, retryCount);
+                            logger.warn(messagesManager.getMessage("server-still-online-retying")
+                                    .replace("%server%", serverName)
+                                    .replace("%retry%", String.valueOf(retryCount))
+                                    .replace("%maxRetries%", String.valueOf(configurationManager.getShutdownRetries())));
+                            apiClient.powerServer(serverID, "stop");
+                            scheduleShutdownCheck(serverName, serverID);
+                        } else {
+                            logger.info(messagesManager.getMessage("shutdown-cancelled")
+                                    .replace("%server%", serverName));
+                            retryCounts.remove(serverName);
+                        }
+                    } else {
+                        retryCounts.remove(serverName);
+                        logger.error(messagesManager.getMessage("shutdown-failed")
+                                .replace("%server%", serverName)
+                                .replace("%retry%", String.valueOf(retryCount)));
+                    }
+                } else {
+                    retryCounts.remove(serverName);
+                    logger.info(messagesManager.getMessage("shutdown-success")
+                            .replace("%server%", serverName));
+                }
+            }).delay(configurationManager.getShutdownRetryDelay(), TimeUnit.SECONDS).schedule();
         }
      /**
      * This method is called when a player tries to connect to a server.
@@ -180,10 +215,12 @@ public class VelocityPteroPower {
         PteroServerInfo serverInfo = serverInfoMap.get(serverName);
 
         if (!serverInfoMap.containsKey(serverName)) {
-            logger.warn(messagesManager.getMessage("server-not-found").replace("%server%", serverName));
+            logger.warn(messagesManager.getMessage("server-not-found")
+                    .replace("%server%", serverName));
             player.sendMessage(
                 this.getPluginPrefix()
-                .append(Component.text(messagesManager.getMessage("server-not-found").replace("%server%", serverName), NamedTextColor.WHITE)));
+                .append(Component.text(messagesManager.getMessage("server-not-found")
+                        .replace("%server%", serverName), NamedTextColor.WHITE)));
             return;
         }
         if (apiClient.isServerOnline(serverName) && this.canMakeRequest()) {
@@ -195,7 +232,8 @@ public class VelocityPteroPower {
         if (startingServers.contains(serverName)){
             player.sendMessage(
                 this.getPluginPrefix()
-                .append(Component.text( messagesManager.getMessage("server-starting").replace("%server%",serverName), NamedTextColor.WHITE)));
+                .append(Component.text( messagesManager.getMessage("server-starting")
+                        .replace("%server%",serverName), NamedTextColor.WHITE)));
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
             return;
         }
@@ -204,7 +242,8 @@ public class VelocityPteroPower {
         apiClient.powerServer(serverInfo.getServerId(), "start");
         player.sendMessage(
                 this.getPluginPrefix()
-                .append(Component.text(messagesManager.getMessage("starting-server").replace("%server%", serverName), NamedTextColor.WHITE)));
+                .append(Component.text(messagesManager.getMessage("starting-server")
+                        .replace("%server%", serverName), NamedTextColor.WHITE)));
         event.setResult(ServerPreConnectEvent.ServerResult.denied());
 
         proxyServer.getScheduler().buildTask(this, () -> {
@@ -221,7 +260,8 @@ public class VelocityPteroPower {
         if (apiClient.isServerOnline(serverName) && this.canMakeRequest()) {
             connectPlayer(player, serverName);
         } else {
-            proxyServer.getScheduler().buildTask(this, () -> checkServerAndConnectPlayer(player, serverName)).delay(configurationManager.getStartupJoinDelay(), TimeUnit.SECONDS).schedule();
+            proxyServer.getScheduler().buildTask(this, () -> checkServerAndConnectPlayer(player, serverName))
+                    .delay(configurationManager.getStartupJoinDelay(), TimeUnit.SECONDS).schedule();
         }
     }
 

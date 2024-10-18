@@ -4,7 +4,7 @@
 ################################
 
 # Version of the configuration file
-fileversion: 5
+fileversion: 6
 
 # Check for updates
 # If true, the plugin will check for updates on startup.
@@ -26,9 +26,17 @@ printRateLimit: false
 # default: 1000
 pingTimeout: 1000
 
+# How many retrys to shut down the server if the previous one failed
+# default: 3
+shutdownRetries: 3
+
+# How long to wait before retrying to shut down the server (in seconds)
+# default: 30
+shutdownRetryDelay: 30
+
 # This is used to check the server status to transfer players after the server starts
 startupJoin:
-  # Once the server is pingable, wait the specified amount of seconds before sending the player to the server
+  # Once the server is pingable, wait the specified number of seconds before sending the player to the server
   # This is useful to wait for plugins like Luckperms to fully load
   # If you set it to 0, the player will be connected as soon as the server is pingable
   joinDelay: 5

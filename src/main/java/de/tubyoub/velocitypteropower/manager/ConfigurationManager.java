@@ -65,6 +65,8 @@ public class ConfigurationManager {
     private int startupJoinDelay;
     private int apiThreads;
     private int pingTimeout;
+    private int shutdownRetryDelay;
+    private int shutdownRetries;
     private final VelocityPteroPower plugin;
     private final Logger logger;
     private Map<String, PteroServerInfo> serverInfoMap;
@@ -104,6 +106,8 @@ public class ConfigurationManager {
             printRateLimit = (boolean) config.get("printRateLimit", false);
             pingTimeout = (int) config.get("pingTimeout", 1000);
             apiThreads = (int) config.get("apiThreads", 10);
+            shutdownRetryDelay = (int) config.get("shutdownRetryDelay", 30);
+            shutdownRetries = (int) config.get("shutdownRetries", 3);
             Section startupJoinSection = config.getSection("startupJoin");
             Map<String, Object> startupJoin = new HashMap<>();
             if (startupJoinSection != null) {
@@ -254,5 +258,13 @@ public class ConfigurationManager {
 
     public int getPingTimeout() {
         return pingTimeout;
+    }
+
+    public int getShutdownRetries() {
+        return shutdownRetries;
+    }
+
+    public int getShutdownRetryDelay() {
+        return shutdownRetryDelay;
     }
 }
