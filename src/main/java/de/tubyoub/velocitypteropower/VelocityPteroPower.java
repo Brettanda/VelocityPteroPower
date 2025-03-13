@@ -230,6 +230,12 @@ public class VelocityPteroPower {
             return;
         }
         if (startingServers.contains(serverName)){
+            if (event.getPreviousServer() == null) {
+                player.disconnect(
+                    Component.text(
+                        "Starting server...\n\nThe " + serverName + " server is still booting up\n\nPlease try again in a minute or two.",
+                        NamedTextColor.WHITE));
+             }
             player.sendMessage(
                 this.getPluginPrefix()
                 .append(Component.text( messagesManager.getMessage("server-starting")
@@ -245,6 +251,12 @@ public class VelocityPteroPower {
                 .append(Component.text(messagesManager.getMessage("starting-server")
                         .replace("%server%", serverName), NamedTextColor.WHITE)));
         event.setResult(ServerPreConnectEvent.ServerResult.denied());
+        if (event.getPreviousServer() == null) {
+                player.disconnect(
+                    Component.text(
+                        "Starting server…\n\nServer " + serverName + " is currently in hibernation mode to conserve server resources.\nIt is now being started, so please wait a moment and then reconnect.",
+                        NamedTextColor.WHITE));
+         }
 
         proxyServer.getScheduler().buildTask(this, () -> {
             if (apiClient.isServerOnline(serverName) && this.canMakeRequest()) {
